@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function AdminDashboard() {
@@ -25,7 +27,6 @@ function AdminDashboard() {
   const [newAvailEnd, setNewAvailEnd] = useState("17:00");
   const [availError, setAvailError] = useState(null);
 
-  // Editing state — which row (if any) is currently being edited, and its draft values.
   const [editingServiceId, setEditingServiceId] = useState(null);
   const [editServiceName, setEditServiceName] = useState("");
   const [editServicePrice, setEditServicePrice] = useState("");
@@ -34,6 +35,7 @@ function AdminDashboard() {
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [editStaffName, setEditStaffName] = useState("");
   const [editStaffEmail, setEditStaffEmail] = useState("");
+
   const [editingAvailId, setEditingAvailId] = useState(null);
   const [editAvailDay, setEditAvailDay] = useState("1");
   const [editAvailStart, setEditAvailStart] = useState("09:00");
@@ -49,15 +51,15 @@ function AdminDashboard() {
     }
 
     Promise.all([
-      fetch("http://localhost:4000/api/bookings", {
+      fetch(`${API_URL}/api/bookings`, {
         headers: { Authorization: `Bearer ${token}` },
       }).then((res) => {
         if (res.status === 401) throw new Error("unauthorized");
         return res.json();
       }),
-      fetch("http://localhost:4000/api/services").then((res) => res.json()),
-      fetch("http://localhost:4000/api/staff").then((res) => res.json()),
-      fetch("http://localhost:4000/api/availability").then((res) => res.json()),
+      fetch(`${API_URL}/api/services`).then((res) => res.json()),
+      fetch(`${API_URL}/api/staff`).then((res) => res.json()),
+      fetch(`${API_URL}/api/availability`).then((res) => res.json()),
     ])
       .then(([bookingsData, servicesData, staffData, availabilityData]) => {
         setBookings(bookingsData);
@@ -88,7 +90,7 @@ function AdminDashboard() {
   function handleAddService(e) {
     e.preventDefault();
     setServiceError(null);
-    fetch("http://localhost:4000/api/services", {
+    fetch(`${API_URL}/api/services`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -113,7 +115,7 @@ function AdminDashboard() {
   function handleAddStaff(e) {
     e.preventDefault();
     setStaffError(null);
-    fetch("http://localhost:4000/api/staff", {
+    fetch(`${API_URL}/api/staff`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ name: newStaffName, email: newStaffEmail || null }),
@@ -133,7 +135,7 @@ function AdminDashboard() {
   function handleAddAvailability(e) {
     e.preventDefault();
     setAvailError(null);
-    fetch("http://localhost:4000/api/availability", {
+    fetch(`${API_URL}/api/availability`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -150,85 +152,31 @@ function AdminDashboard() {
       .then(() => loadData())
       .catch(() => setAvailError("Failed to add availability"));
   }
+
   function handleAddAvailabilityAllDays(e) {
-  e.preventDefault();
-  setAvailError(null);
+    e.preventDefault();
+    setAvailError(null);
 
-  // Fire one request per day of the week (0 through 6), using whatever staff/start/end is currently selected.
-  const requests = [0, 1, 2, 3, 4, 5, 6].map((day) =>
-    fetch("http://localhost:4000/api/availability", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        staff_id: newAvailStaffId,
-        day_of_week: day,
-        start_time: newAvailStart,
-        end_time: newAvailEnd,
-      }),
-    })
-  );
+    const requests = [0, 1, 2, 3, 4, 5, 6].map((day) =>
+      fetch(`${API_URL}/api/availability`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          staff_id: newAvailStaffId,
+          day_of_week: day,
+          start_time: newAvailStart,
+          end_time: newAvailEnd,
+        }),
+      })
+    );
 
-  Promise.all(requests)
-    .then(() => loadData())
-    .catch(() => setAvailError("Failed to add availability for all days"));
-}
+    Promise.all(requests)
+      .then(() => loadData())
+      .catch(() => setAvailError("Failed to add availability for all days"));
+  }
 
-function handleDeleteAvailability(availId) {
-  fetch(`http://localhost:4000/api/availability/${availId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
-  })
-    .then((res) => {
-      if (!res.ok) throw new Error("Failed to delete availability");
-      return res.json();
-    })
-    .then(() => loadData())
-    .catch(() => alert("Failed to delete availability"));
-}
-
-function handleStartEditAvail(entry) {
-  setEditingAvailId(entry.id);
-  setEditAvailDay(String(entry.day_of_week));
-  setEditAvailStart(entry.start_time.slice(0, 5));
-  setEditAvailEnd(entry.end_time.slice(0, 5));
-}
-
-function handleCancelEditAvail() {
-  setEditingAvailId(null);
-}
-
-function handleSaveEditAvail(availId) {
-  fetch(`http://localhost:4000/api/availability/${availId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      day_of_week: editAvailDay,
-      start_time: editAvailStart,
-      end_time: editAvailEnd,
-    }),
-  })
-    .then((res) => {
-      if (!res.ok) throw new Error("Failed to update availability");
-      return res.json();
-    })
-    .then(() => {
-      setEditingAvailId(null);
-      loadData();
-    })
-    .catch(() => alert("Failed to update availability"));
-}
-
-// Groups the flat availability array into { staffId: [entries] }, so we can render one section per staff member.
-function groupAvailabilityByStaff() {
-  return availability.reduce((groups, entry) => {
-    const key = entry.staff_id;
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(entry);
-    return groups;
-  }, {});
-}
   function handleDeleteService(serviceId) {
-    fetch(`http://localhost:4000/api/services/${serviceId}`, {
+    fetch(`${API_URL}/api/services/${serviceId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -239,7 +187,7 @@ function groupAvailabilityByStaff() {
             `${data.error}. Deactivate it instead so it no longer shows for new bookings?`
           );
           if (confirmDeactivate) {
-            return fetch(`http://localhost:4000/api/services/${serviceId}`, {
+            return fetch(`${API_URL}/api/services/${serviceId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
               body: JSON.stringify({ active: false }),
@@ -254,7 +202,7 @@ function groupAvailabilityByStaff() {
   }
 
   function handleDeleteStaff(staffId) {
-    fetch(`http://localhost:4000/api/staff/${staffId}`, {
+    fetch(`${API_URL}/api/staff/${staffId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -265,7 +213,7 @@ function groupAvailabilityByStaff() {
             `${data.error}. Deactivate it instead so it no longer shows for new bookings?`
           );
           if (confirmDeactivate) {
-            return fetch(`http://localhost:4000/api/staff/${staffId}`, {
+            return fetch(`${API_URL}/api/staff/${staffId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
               body: JSON.stringify({ active: false }),
@@ -280,7 +228,7 @@ function groupAvailabilityByStaff() {
   }
 
   function handleReactivateService(serviceId) {
-    fetch(`http://localhost:4000/api/services/${serviceId}`, {
+    fetch(`${API_URL}/api/services/${serviceId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ active: true }),
@@ -290,7 +238,7 @@ function groupAvailabilityByStaff() {
   }
 
   function handleReactivateStaff(staffId) {
-    fetch(`http://localhost:4000/api/staff/${staffId}`, {
+    fetch(`${API_URL}/api/staff/${staffId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ active: true }),
@@ -311,7 +259,7 @@ function groupAvailabilityByStaff() {
   }
 
   function handleSaveEditService(serviceId) {
-    fetch(`http://localhost:4000/api/services/${serviceId}`, {
+    fetch(`${API_URL}/api/services/${serviceId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -342,7 +290,7 @@ function groupAvailabilityByStaff() {
   }
 
   function handleSaveEditStaff(staffId) {
-    fetch(`http://localhost:4000/api/staff/${staffId}`, {
+    fetch(`${API_URL}/api/staff/${staffId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ name: editStaffName, email: editStaffEmail || null }),
@@ -358,8 +306,53 @@ function groupAvailabilityByStaff() {
       .catch(() => alert("Failed to update staff member"));
   }
 
+  function handleDeleteAvailability(availId) {
+    fetch(`${API_URL}/api/availability/${availId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to delete availability");
+        return res.json();
+      })
+      .then(() => loadData())
+      .catch(() => alert("Failed to delete availability"));
+  }
+
+  function handleStartEditAvail(entry) {
+    setEditingAvailId(entry.id);
+    setEditAvailDay(String(entry.day_of_week));
+    setEditAvailStart(entry.start_time.slice(0, 5));
+    setEditAvailEnd(entry.end_time.slice(0, 5));
+  }
+
+  function handleCancelEditAvail() {
+    setEditingAvailId(null);
+  }
+
+  function handleSaveEditAvail(availId) {
+    fetch(`${API_URL}/api/availability/${availId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        day_of_week: editAvailDay,
+        start_time: editAvailStart,
+        end_time: editAvailEnd,
+      }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to update availability");
+        return res.json();
+      })
+      .then(() => {
+        setEditingAvailId(null);
+        loadData();
+      })
+      .catch(() => alert("Failed to update availability"));
+  }
+
   function handleCancelBooking(bookingId) {
-    fetch(`http://localhost:4000/api/bookings/${bookingId}`, {
+    fetch(`${API_URL}/api/bookings/${bookingId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ status: "cancelled" }),
@@ -377,6 +370,15 @@ function groupAvailabilityByStaff() {
     return member ? member.name : `Staff #${staffId}`;
   }
 
+  function groupAvailabilityByStaff() {
+    return availability.reduce((groups, entry) => {
+      const key = entry.staff_id;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(entry);
+      return groups;
+    }, {});
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -392,8 +394,7 @@ function groupAvailabilityByStaff() {
   const labelClasses = "block text-sm font-medium text-gray-700 mb-1";
   const cardClasses = "bg-white rounded-xl shadow-md p-6 mb-6";
   const sectionTitleClasses = "text-lg font-bold text-gray-900 mb-4";
-  const actionButtonClasses =
-    "text-xs font-medium border rounded-lg px-3 py-1 whitespace-nowrap";
+  const actionButtonClasses = "text-xs font-medium border rounded-lg px-3 py-1 whitespace-nowrap";
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -433,9 +434,7 @@ function groupAvailabilityByStaff() {
                       <td className="py-3 pr-4">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            b.status === "cancelled"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-green-100 text-green-700"
+                            b.status === "cancelled" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"
                           }`}
                         >
                           {b.status}
@@ -466,66 +465,24 @@ function groupAvailabilityByStaff() {
               <li key={s.id} className="py-3 text-sm text-gray-700">
                 {editingServiceId === s.id ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="text"
-                      value={editServiceName}
-                      onChange={(e) => setEditServiceName(e.target.value)}
-                      className={smallInputClasses}
-                    />
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editServicePrice}
-                      onChange={(e) => setEditServicePrice(e.target.value)}
-                      className={smallInputClasses}
-                    />
-                    <input
-                      type="number"
-                      value={editServiceDuration}
-                      onChange={(e) => setEditServiceDuration(e.target.value)}
-                      className={smallInputClasses}
-                    />
-                    <button
-                      onClick={() => handleSaveEditService(s.id)}
-                      className={`${actionButtonClasses} bg-blue-600 text-white border-blue-600`}
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={handleCancelEditService}
-                      className={`${actionButtonClasses} text-gray-600 border-gray-300`}
-                    >
-                      Cancel
-                    </button>
+                    <input type="text" value={editServiceName} onChange={(e) => setEditServiceName(e.target.value)} className={smallInputClasses} />
+                    <input type="number" step="0.01" value={editServicePrice} onChange={(e) => setEditServicePrice(e.target.value)} className={smallInputClasses} />
+                    <input type="number" value={editServiceDuration} onChange={(e) => setEditServiceDuration(e.target.value)} className={smallInputClasses} />
+                    <button onClick={() => handleSaveEditService(s.id)} className={`${actionButtonClasses} bg-blue-600 text-white border-blue-600`}>Save</button>
+                    <button onClick={handleCancelEditService} className={`${actionButtonClasses} text-gray-600 border-gray-300`}>Cancel</button>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
                     <span>
-                      <span className="font-medium text-gray-900">{s.name}</span> — ${s.price} (
-                      {s.duration_minutes} min)
+                      <span className="font-medium text-gray-900">{s.name}</span> — ${s.price} ({s.duration_minutes} min)
                       {!s.active && <span className="ml-2 text-xs text-gray-400 italic">(inactive)</span>}
                     </span>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => handleStartEditService(s)}
-                        className={`${actionButtonClasses} text-blue-600 border-blue-200 hover:text-blue-800`}
-                      >
-                        Edit
-                      </button>
+                      <button onClick={() => handleStartEditService(s)} className={`${actionButtonClasses} text-blue-600 border-blue-200 hover:text-blue-800`}>Edit</button>
                       {!s.active && (
-                        <button
-                          onClick={() => handleReactivateService(s.id)}
-                          className={`${actionButtonClasses} text-green-600 border-green-200 hover:text-green-800`}
-                        >
-                          Reactivate
-                        </button>
+                        <button onClick={() => handleReactivateService(s.id)} className={`${actionButtonClasses} text-green-600 border-green-200 hover:text-green-800`}>Reactivate</button>
                       )}
-                      <button
-                        onClick={() => handleDeleteService(s.id)}
-                        className={`${actionButtonClasses} text-red-600 border-red-200 hover:text-red-800`}
-                      >
-                        Delete
-                      </button>
+                      <button onClick={() => handleDeleteService(s.id)} className={`${actionButtonClasses} text-red-600 border-red-200 hover:text-red-800`}>Delete</button>
                     </div>
                   </div>
                 )}
@@ -547,9 +504,7 @@ function groupAvailabilityByStaff() {
               <input type="number" value={newServiceDuration} onChange={(e) => setNewServiceDuration(e.target.value)} required className={inputClasses} />
             </div>
             <div className="sm:col-span-3">
-              <button type="submit" className="bg-blue-600 text-white font-semibold rounded-lg px-4 py-2 hover:bg-blue-700 transition">
-                Add Service
-              </button>
+              <button type="submit" className="bg-blue-600 text-white font-semibold rounded-lg px-4 py-2 hover:bg-blue-700 transition">Add Service</button>
             </div>
           </form>
           {serviceError && <p className="text-red-600 text-sm mt-3">{serviceError}</p>}
@@ -562,30 +517,10 @@ function groupAvailabilityByStaff() {
               <li key={s.id} className="py-3 text-sm text-gray-700">
                 {editingStaffId === s.id ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="text"
-                      value={editStaffName}
-                      onChange={(e) => setEditStaffName(e.target.value)}
-                      className={smallInputClasses}
-                    />
-                    <input
-                      type="email"
-                      value={editStaffEmail}
-                      onChange={(e) => setEditStaffEmail(e.target.value)}
-                      className={`${smallInputClasses} w-48`}
-                    />
-                    <button
-                      onClick={() => handleSaveEditStaff(s.id)}
-                      className={`${actionButtonClasses} bg-blue-600 text-white border-blue-600`}
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={handleCancelEditStaff}
-                      className={`${actionButtonClasses} text-gray-600 border-gray-300`}
-                    >
-                      Cancel
-                    </button>
+                    <input type="text" value={editStaffName} onChange={(e) => setEditStaffName(e.target.value)} className={smallInputClasses} />
+                    <input type="email" value={editStaffEmail} onChange={(e) => setEditStaffEmail(e.target.value)} className={`${smallInputClasses} w-48`} />
+                    <button onClick={() => handleSaveEditStaff(s.id)} className={`${actionButtonClasses} bg-blue-600 text-white border-blue-600`}>Save</button>
+                    <button onClick={handleCancelEditStaff} className={`${actionButtonClasses} text-gray-600 border-gray-300`}>Cancel</button>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
@@ -594,26 +529,11 @@ function groupAvailabilityByStaff() {
                       {!s.active && <span className="ml-2 text-xs text-gray-400 italic">(inactive)</span>}
                     </span>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => handleStartEditStaff(s)}
-                        className={`${actionButtonClasses} text-blue-600 border-blue-200 hover:text-blue-800`}
-                      >
-                        Edit
-                      </button>
+                      <button onClick={() => handleStartEditStaff(s)} className={`${actionButtonClasses} text-blue-600 border-blue-200 hover:text-blue-800`}>Edit</button>
                       {!s.active && (
-                        <button
-                          onClick={() => handleReactivateStaff(s.id)}
-                          className={`${actionButtonClasses} text-green-600 border-green-200 hover:text-green-800`}
-                        >
-                          Reactivate
-                        </button>
+                        <button onClick={() => handleReactivateStaff(s.id)} className={`${actionButtonClasses} text-green-600 border-green-200 hover:text-green-800`}>Reactivate</button>
                       )}
-                      <button
-                        onClick={() => handleDeleteStaff(s.id)}
-                        className={`${actionButtonClasses} text-red-600 border-red-200 hover:text-red-800`}
-                      >
-                        Delete
-                      </button>
+                      <button onClick={() => handleDeleteStaff(s.id)} className={`${actionButtonClasses} text-red-600 border-red-200 hover:text-red-800`}>Delete</button>
                     </div>
                   </div>
                 )}
@@ -631,9 +551,7 @@ function groupAvailabilityByStaff() {
               <input type="email" value={newStaffEmail} onChange={(e) => setNewStaffEmail(e.target.value)} className={inputClasses} />
             </div>
             <div>
-              <button type="submit" className="bg-blue-600 text-white font-semibold rounded-lg px-4 py-2 hover:bg-blue-700 transition">
-                Add Staff Member
-              </button>
+              <button type="submit" className="bg-blue-600 text-white font-semibold rounded-lg px-4 py-2 hover:bg-blue-700 transition">Add Staff Member</button>
             </div>
           </form>
           {staffError && <p className="text-red-600 text-sm mt-3">{staffError}</p>}
@@ -642,88 +560,48 @@ function groupAvailabilityByStaff() {
         <div className={cardClasses}>
           <h2 className={sectionTitleClasses}>Manage Availability (Working Hours)</h2>
           <div className="mb-5">
-  {Object.entries(groupAvailabilityByStaff()).map(([staffId, entries]) => (
-    <div key={staffId} className="mb-4 last:mb-0">
-      <p className="font-semibold text-gray-900 text-sm mb-2">{staffName(Number(staffId))}</p>
-      <ul className="divide-y divide-gray-100 pl-2 border-l-2 border-gray-100">
-        {entries
-          .sort((a, b) => a.day_of_week - b.day_of_week)
-          .map((a) => (
-            <li key={a.id} className="py-2 pl-2 text-sm text-gray-700">
-              {editingAvailId === a.id ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={editAvailDay}
-                    onChange={(e) => setEditAvailDay(e.target.value)}
-                    className={smallInputClasses}
-                  >
-                    {DAY_NAMES.map((name, index) => (
-                      <option key={index} value={index}>
-                        {name}
-                      </option>
+            {Object.entries(groupAvailabilityByStaff()).map(([staffId, entries]) => (
+              <div key={staffId} className="mb-4 last:mb-0">
+                <p className="font-semibold text-gray-900 text-sm mb-2">{staffName(Number(staffId))}</p>
+                <ul className="divide-y divide-gray-100 pl-2 border-l-2 border-gray-100">
+                  {entries
+                    .sort((a, b) => a.day_of_week - b.day_of_week)
+                    .map((a) => (
+                      <li key={a.id} className="py-2 pl-2 text-sm text-gray-700">
+                        {editingAvailId === a.id ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select value={editAvailDay} onChange={(e) => setEditAvailDay(e.target.value)} className={smallInputClasses}>
+                              {DAY_NAMES.map((name, index) => (
+                                <option key={index} value={index}>{name}</option>
+                              ))}
+                            </select>
+                            <input type="time" value={editAvailStart} onChange={(e) => setEditAvailStart(e.target.value)} className={smallInputClasses} />
+                            <input type="time" value={editAvailEnd} onChange={(e) => setEditAvailEnd(e.target.value)} className={smallInputClasses} />
+                            <button onClick={() => handleSaveEditAvail(a.id)} className={`${actionButtonClasses} bg-blue-600 text-white border-blue-600`}>Save</button>
+                            <button onClick={handleCancelEditAvail} className={`${actionButtonClasses} text-gray-600 border-gray-300`}>Cancel</button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span>{DAY_NAMES[a.day_of_week]}: {a.start_time.slice(0, 5)} to {a.end_time.slice(0, 5)}</span>
+                            <div className="flex gap-2">
+                              <button onClick={() => handleStartEditAvail(a)} className={`${actionButtonClasses} text-blue-600 border-blue-200 hover:text-blue-800`}>Edit</button>
+                              <button onClick={() => handleDeleteAvailability(a.id)} className={`${actionButtonClasses} text-red-600 border-red-200 hover:text-red-800`}>Delete</button>
+                            </div>
+                          </div>
+                        )}
+                      </li>
                     ))}
-                  </select>
-                  <input
-                    type="time"
-                    value={editAvailStart}
-                    onChange={(e) => setEditAvailStart(e.target.value)}
-                    className={smallInputClasses}
-                  />
-                  <input
-                    type="time"
-                    value={editAvailEnd}
-                    onChange={(e) => setEditAvailEnd(e.target.value)}
-                    className={smallInputClasses}
-                  />
-                  <button
-                    onClick={() => handleSaveEditAvail(a.id)}
-                    className={`${actionButtonClasses} bg-blue-600 text-white border-blue-600`}
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={handleCancelEditAvail}
-                    className={`${actionButtonClasses} text-gray-600 border-gray-300`}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <span>
-                    {DAY_NAMES[a.day_of_week]}: {a.start_time.slice(0, 5)} to {a.end_time.slice(0, 5)}
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleStartEditAvail(a)}
-                      className={`${actionButtonClasses} text-blue-600 border-blue-200 hover:text-blue-800`}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAvailability(a.id)}
-                      className={`${actionButtonClasses} text-red-600 border-red-200 hover:text-red-800`}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-            </li>
-          ))}
-      </ul>
-    </div>
-  ))}
-</div>
+                </ul>
+              </div>
+            ))}
+          </div>
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Add working hours</h3>
           <form onSubmit={handleAddAvailability} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
             <div>
               <label className={labelClasses}>Staff member</label>
               <select value={newAvailStaffId} onChange={(e) => setNewAvailStaffId(e.target.value)} className={inputClasses}>
                 {staff.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
+                  <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
@@ -731,9 +609,7 @@ function groupAvailabilityByStaff() {
               <label className={labelClasses}>Day</label>
               <select value={newAvailDay} onChange={(e) => setNewAvailDay(e.target.value)} className={inputClasses}>
                 {DAY_NAMES.map((name, index) => (
-                  <option key={index} value={index}>
-                    {name}
-                  </option>
+                  <option key={index} value={index}>{name}</option>
                 ))}
               </select>
             </div>
@@ -746,16 +622,8 @@ function groupAvailabilityByStaff() {
               <input type="time" value={newAvailEnd} onChange={(e) => setNewAvailEnd(e.target.value)} className={inputClasses} />
             </div>
             <div className="sm:col-span-4 flex gap-3">
-              <button type="submit" className="bg-blue-600 text-white font-semibold rounded-lg px-4 py-2 hover:bg-blue-700 transition">
-                Add Working Hours
-              </button>
-              <button
-                type="button"
-                onClick={handleAddAvailabilityAllDays}
-                className="bg-gray-100 text-gray-700 font-semibold rounded-lg px-4 py-2 hover:bg-gray-200 transition border border-gray-300"
-              >
-                Apply to All 7 Days
-              </button>
+              <button type="submit" className="bg-blue-600 text-white font-semibold rounded-lg px-4 py-2 hover:bg-blue-700 transition">Add Working Hours</button>
+              <button type="button" onClick={handleAddAvailabilityAllDays} className="bg-gray-100 text-gray-700 font-semibold rounded-lg px-4 py-2 hover:bg-gray-200 transition border border-gray-300">Apply to All 7 Days</button>
             </div>
           </form>
           {availError && <p className="text-red-600 text-sm mt-3">{availError}</p>}
