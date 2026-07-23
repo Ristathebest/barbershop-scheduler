@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+
+.font-heading {
+  font-family: 'Playfair Display', serif;
+}.react-datepicker {
+  background-color: #262626 !important;
+  border-color: #404040 !important;
+  font-family: inherit !important;
+}
+.react-datepicker__header {
+  background-color: #171717 !important;
+  border-color: #404040 !important;
+}
+.react-datepicker__current-month,
+.react-datepicker__day-name {
+  color: #fbbf24 !important;
+}
+.react-datepicker__day {
+  color: #e5e5e5 !important;
+}
+.react-datepicker__day:hover {
+  background-color: #404040 !important;
+}
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: #f59e0b !important;
+  color: #171717 !important;
+}
+.react-datepicker__day--disabled {
+  color: #525252 !important;
+}
