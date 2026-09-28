@@ -269,7 +269,17 @@ function BookingPage() {
           )}
         </div>
       </div>
-
+      <section className="max-w-2xl mx-auto px-4 pb-10 text-center">
+        <h2 className="font-heading text-2xl font-bold text-white">Visit Us in Parramatta</h2>
+        <p className="text-neutral-400 mt-2">123 Church Street, Parramatta NSW 2150</p>
+        <p className="mt-1">
+          <a href="tel:0255501234" className="text-amber-500 hover:text-amber-400">02 5550 1234</a>
+        </p>
+        <h3 className="text-amber-500 text-xs font-semibold uppercase tracking-[0.2em] mt-6 mb-2">Opening Hours</h3>
+        <p className="text-neutral-400 text-sm">Tue – Fri: 9am – 6pm</p>
+        <p className="text-neutral-400 text-sm">Sat: 8am – 4pm</p>
+        <p className="text-neutral-400 text-sm">Sun – Mon: Closed</p>
+      </section>
       <footer className="text-center py-6 text-neutral-600 text-xs">
         © 2026 Marko's Barber Co. · Made by Marko
       </footer>
